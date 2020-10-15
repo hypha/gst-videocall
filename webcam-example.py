@@ -7,6 +7,30 @@ gi.require_version('Gst', '1.0')
 from gi.repository import Gst, GObject, Gtk
 import platform
 
+class Gst_Pipeline:
+    def __init__(self):
+        # Set up the gstreamer pipeline
+        if platform.system() == "Linux":
+            webcamsrc = "v4l2src"
+        elif platform.system() == "Darwin":
+            webcamsrc = "avfvideosrc ! video/x-raw"
+        elif platform.system() == "Windows":
+            print("This tool does not support Windows [yet]")
+            sys.exit(1)
+
+        timeover = 'timeoverlay halignment=right valignment=bottom text="Stream time:" shaded-background=true font-desc="Courier, 24"'
+
+        outsink = "autovideosink"
+
+        self.player = Gst.parse_launch (f"{webcamsrc} ! {timeover} ! {outsink}")
+
+    def set_state(self, state):
+        self.player.set_state(state)
+
+    def get_bus(self):
+        return self.player.get_bus()
+
+
 class GTK_Main:
     def __init__(self):
         window = Gtk.Window(Gtk.WindowType.TOPLEVEL)
@@ -30,16 +54,7 @@ class GTK_Main:
         hbox.add(Gtk.Label())
         window.show_all()
 
-        # Set up the gstreamer pipeline
-        if platform.system() == "Linux":
-            webcamsrc = "v4l2src"
-        elif platform.system() == "Darwin":
-            webcamsrc = "avfvideosrc ! video/x-raw"
-        elif platform.system() == "Windows":
-            system.exit(1)
-        timeover = 'timeoverlay halignment=right valignment=bottom text="Stream time:" shaded-background=true font-desc="Sans, 24"'
-        outsink = "autovideosink"
-        self.player = Gst.parse_launch (f"{webcamsrc} ! {timeover} ! {outsink}")
+        self.player = Gst_Pipeline()
         bus = self.player.get_bus()
         bus.add_signal_watch()
         bus.enable_sync_message_emission()
