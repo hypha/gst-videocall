@@ -9,20 +9,46 @@ import platform
 
 class Gst_Pipeline:
     def __init__(self):
-        # Set up the gstreamer pipeline
+        # Elements is a list of dictionaries, in which the
+        # name key defines the element and the rest are properties
+        elements = []
+
+        # Source is OS-dependent
         if platform.system() == "Linux":
-            webcamsrc = "v4l2src"
+            elements.append({"name":"v4l2src"})
         elif platform.system() == "Darwin":
-            webcamsrc = "avfvideosrc ! video/x-raw"
+            elements.append({"name":"avfvideosrc"})
+            elements.append({"name":"capsfilter", "caps":Gst.Caps.from_string("video/x-raw")})
         elif platform.system() == "Windows":
             print("This tool does not support Windows [yet]")
             sys.exit(1)
 
-        timeover = 'timeoverlay halignment=right valignment=bottom text="Stream time:" shaded-background=true font-desc="Courier, 24"'
+        # Time overlay
+        elements.append({"name":"timeoverlay",
+                         "halignment":"right",
+                         "valignment":"bottom",
+                         "text": "Stream time:",
+                         "shaded-background":"true",
+                         "font-desc":"Courier, 24"})
 
-        outsink = "autovideosink"
+        # Output sink
+        elements.append({"name":"autovideosink"})
 
-        self.player = Gst.parse_launch (f"{webcamsrc} ! {timeover} ! {outsink}")
+        # Parse the elements dictionary into a pipeline
+        self.player = Gst.Pipeline()
+        prv = None
+        for element in elements:
+            gst_el = Gst.ElementFactory.make(element['name'])
+            if gst_el is not None:
+                for i in set(element.keys()) - set(['name']):
+                    gst_el.set_property(i, element[i])
+                self.player.add(gst_el)
+                if prv is not None:
+                   prv.link(gst_el)
+                prv = gst_el
+            else:
+                print(f"Attempt to make element {element} returned None")
+                sys.exit(1)
 
     def set_state(self, state):
         self.player.set_state(state)
