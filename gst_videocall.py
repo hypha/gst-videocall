@@ -16,7 +16,10 @@ def pipeline_from_list(elements):
     pipe = Gst.Pipeline()
     prv = None
     for element in elements:
-        gst_el = Gst.ElementFactory.make(element['el_name'])
+        if 'el_label' in element.keys():
+            gst_el = Gst.ElementFactory.make(element['el_name'], element['el_label'])
+        else:
+            gst_el = Gst.ElementFactory.make(element['el_name'])
         if gst_el is not None:
             for i in set(element.keys()) - set(['el_name', 'el_label']):
                 gst_el.set_property(i, element[i])
