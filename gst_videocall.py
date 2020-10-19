@@ -4,6 +4,7 @@
 import sys, os
 import gi
 gi.require_version('Gst', '1.0')
+gi.require_version('Gtk', '3.0')
 from gi.repository import Gst, GObject, Gtk
 import platform
 
@@ -15,32 +16,36 @@ class Gst_Pipeline:
 
         # Source is OS-dependent
         if platform.system() == "Linux":
-            elements.append({"name":"v4l2src"})
+            elements.append({"el_name":"v4l2src"})
         elif platform.system() == "Darwin":
-            elements.append({"name":"avfvideosrc"})
-            elements.append({"name":"capsfilter", "caps":Gst.Caps.from_string("video/x-raw")})
+            elements.append({"el_name":"avfvideosrc"})
+            elements.append({"el_name":"capsfilter", "caps":Gst.Caps.from_string("video/x-raw")})
         elif platform.system() == "Windows":
             print("This tool does not support Windows [yet]")
             sys.exit(1)
 
         # Time overlay
-        elements.append({"name":"timeoverlay",
+        elements.append({"el_name":"timeoverlay",
                          "halignment":"right",
                          "valignment":"bottom",
                          "text": "Stream time:",
                          "shaded-background":"true",
                          "font-desc":"Courier, 24"})
 
+        # Monitor branch & sink
+        elements.append({"el_name": "tee",
+                         "name": "monitor"})
+
         # Output sink
-        elements.append({"name":"autovideosink"})
+        elements.append({"el_name":"autovideosink"})
 
         # Parse the elements dictionary into a pipeline
         self.player = Gst.Pipeline()
         prv = None
         for element in elements:
-            gst_el = Gst.ElementFactory.make(element['name'])
+            gst_el = Gst.ElementFactory.make(element['el_name'])
             if gst_el is not None:
-                for i in set(element.keys()) - set(['name']):
+                for i in set(element.keys()) - set(['el_name']):
                     gst_el.set_property(i, element[i])
                 self.player.add(gst_el)
                 if prv is not None:
@@ -120,7 +125,9 @@ class GTK_Main:
             imagesink.set_property("force-aspect-ratio", True)
             imagesink.set_xwindow_id(self.movie_window.window.xid)
 
-Gst.init(None)
-GTK_Main()
-GObject.threads_init()
-Gtk.main()
+
+if __name__ == '__main__':
+    Gst.init(None)
+    GTK_Main()
+    GObject.threads_init()
+    Gtk.main()
