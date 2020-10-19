@@ -8,7 +8,30 @@ gi.require_version('Gtk', '3.0')
 from gi.repository import Gst, GObject, Gtk
 import platform
 
-class Gst_Pipeline:
+def pipeline_from_list(elements):
+    """
+    Parse a list of element definitions, defined as dictionaries,
+    into a pipeline
+    """
+    pipe = Gst.Pipeline()
+    prv = None
+    for element in elements:
+        gst_el = Gst.ElementFactory.make(element['el_name'])
+        if gst_el is not None:
+            for i in set(element.keys()) - set(['el_name', 'el_label']):
+                gst_el.set_property(i, element[i])
+            pipe.add(gst_el)
+            if prv is not None:
+               prv.link(gst_el)
+            prv = gst_el
+        else:
+            raise f"Attempt to make element {element} returned None"
+    return pipe
+
+class Sending_Pipeline:
+    """ Class for the sending GStreamer pipeline """
+
+
     def __init__(self):
         # Elements is a list of dictionaries, in which the
         # name key defines the element and the rest are properties
@@ -16,44 +39,48 @@ class Gst_Pipeline:
 
         # Source is OS-dependent
         if platform.system() == "Linux":
-            elements.append({"el_name":"v4l2src"})
+            elements.append({
+                              "el_label": "source",
+                              "el_name": "v4l2src"
+                           })
         elif platform.system() == "Darwin":
-            elements.append({"el_name":"avfvideosrc"})
-            elements.append({"el_name":"capsfilter", "caps":Gst.Caps.from_string("video/x-raw")})
+            elements.append({
+                             "el_label": "source",
+                             "el_name":"avfvideosrc"
+                             })
+            elements.append({
+                             "el_label": "source-caps",
+                             "el_name": "capsfilter",
+                             "caps": Gst.Caps.from_string("video/x-raw"),
+                             })
         elif platform.system() == "Windows":
             print("This tool does not support Windows [yet]")
             sys.exit(1)
 
         # Time overlay
-        elements.append({"el_name":"timeoverlay",
-                         "halignment":"right",
-                         "valignment":"bottom",
+        elements.append({
+                         "el_label": "timeoverlay",
+                         "el_name": "timeoverlay",
+                         "halignment": "right",
+                         "valignment": "bottom",
                          "text": "Stream time:",
-                         "shaded-background":"true",
-                         "font-desc":"Courier, 24"})
+                         "shaded-background": "true",
+                         "font-desc":"Courier, 24"
+                         })
 
         # Monitor branch & sink
-        elements.append({"el_name": "tee",
-                         "name": "monitor"})
+        elements.append({
+                         "el_label": "monitor",
+                         "el_name": "tee"
+                         })
 
         # Output sink
-        elements.append({"el_name":"autovideosink"})
+        elements.append({
+                         "el_label": "video-out",
+                         "el_name": "autovideosink"
+                        })
+        self.player = pipeline_from_list(elements)
 
-        # Parse the elements dictionary into a pipeline
-        self.player = Gst.Pipeline()
-        prv = None
-        for element in elements:
-            gst_el = Gst.ElementFactory.make(element['el_name'])
-            if gst_el is not None:
-                for i in set(element.keys()) - set(['el_name']):
-                    gst_el.set_property(i, element[i])
-                self.player.add(gst_el)
-                if prv is not None:
-                   prv.link(gst_el)
-                prv = gst_el
-            else:
-                print(f"Attempt to make element {element} returned None")
-                sys.exit(1)
 
     def set_state(self, state):
         self.player.set_state(state)
@@ -63,9 +90,10 @@ class Gst_Pipeline:
 
 
 class GTK_Main:
+    """ The main Gtk application window """
     def __init__(self):
         window = Gtk.Window(Gtk.WindowType.TOPLEVEL)
-        window.set_title("Webcam-Viewer")
+        window.set_title("GST Videocall application")
         window.set_default_size(500, 400)
         window.connect("destroy", Gtk.main_quit, "WM destroy")
         vbox = Gtk.VBox()
@@ -85,8 +113,8 @@ class GTK_Main:
         hbox.add(Gtk.Label())
         window.show_all()
 
-        self.player = Gst_Pipeline()
-        bus = self.player.get_bus()
+        self.sending = Sending_Pipeline()
+        bus = self.sending.get_bus()
         bus.add_signal_watch()
         bus.enable_sync_message_emission()
         bus.connect("message", self.on_message)
@@ -95,9 +123,9 @@ class GTK_Main:
     def start_stop(self, w):
         if self.button.get_label() == "Start":
             self.button.set_label("Stop")
-            self.player.set_state(Gst.State.PLAYING)
+            self.sending.set_state(Gst.State.PLAYING)
         else:
-            self.player.set_state(Gst.State.NULL)
+            self.sending.set_state(Gst.State.NULL)
             self.button.set_label("Start")
 
     def exit(self, widget, data=None):
