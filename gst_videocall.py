@@ -16,12 +16,9 @@ def pipeline_from_list(elements):
     pipe = Gst.Pipeline()
     prv = None
     for element in elements:
-        if 'el_label' in element.keys():
-            gst_el = Gst.ElementFactory.make(element['el_name'], element['el_label'])
-        else:
-            gst_el = Gst.ElementFactory.make(element['el_name'])
+        gst_el = Gst.ElementFactory.make(element['el_name'])
         if gst_el is not None:
-            for i in set(element.keys()) - set(['el_name', 'el_label']):
+            for i in set(element.keys()) - set(['el_name']):
                 gst_el.set_property(i, element[i])
             pipe.add(gst_el)
             if prv is not None:
@@ -43,18 +40,18 @@ class Sending_Pipeline:
         # Source is OS-dependent
         if platform.system() == "Linux":
             elements.append({
-                              "el_label": "source",
-                              "el_name": "v4l2src"
+                              "el_name": "v4l2src",
+                              "name": "source"
                            })
         elif platform.system() == "Darwin":
             elements.append({
-                             "el_label": "source",
-                             "el_name":"avfvideosrc"
+                             "el_name":"avfvideosrc",
+                             "name": "source"
                              })
             elements.append({
-                             "el_label": "source-caps",
                              "el_name": "capsfilter",
-                             "caps": Gst.Caps.from_string("video/x-raw"),
+                             "name": "source-caps",
+                             "caps": Gst.Caps.from_string("video/x-raw")
                              })
         elif platform.system() == "Windows":
             print("This tool does not support Windows [yet]")
@@ -62,8 +59,8 @@ class Sending_Pipeline:
 
         # Time overlay
         elements.append({
-                         "el_label": "timeoverlay",
                          "el_name": "timeoverlay",
+                         "name": "timeoverlay",
                          "halignment": "right",
                          "valignment": "bottom",
                          "text": "Stream time:",
@@ -73,14 +70,14 @@ class Sending_Pipeline:
 
         # Monitor branch & sink
         elements.append({
-                         "el_label": "monitor",
-                         "el_name": "tee"
+                         "el_name": "tee",
+                         "name": "monitor"
                          })
 
         # Output sink
         elements.append({
-                         "el_label": "video-out",
-                         "el_name": "autovideosink"
+                         "el_name": "autovideosink",
+                         "name": "video-out"
                         })
         self.player = pipeline_from_list(elements)
 
