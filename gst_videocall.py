@@ -110,6 +110,9 @@ class GTK_Main:
         self.button2 = Gtk.Button("Quit")
         self.button2.connect("clicked", self.exit)
         hbox.pack_start(self.button2, False, False, 0)
+        self.button3 = Gtk.Button("Silence!")
+        self.button3.connect("clicked", self.silence)
+        hbox.pack_start(self.button3, False, False, 0)
         hbox.add(Gtk.Label())
         window.show_all()
 
@@ -123,10 +126,16 @@ class GTK_Main:
     def start_stop(self, w):
         if self.button.get_label() == "Start":
             self.button.set_label("Stop")
-            self.sending.set_state(Gst.State.PLAYING)
+            self.sending.player.set_state(Gst.State.PLAYING)
         else:
-            self.sending.set_state(Gst.State.NULL)
+            self.sending.player.set_state(Gst.State.NULL)
             self.button.set_label("Start")
+
+    def silence(self, w):
+        timeoverlay = self.sending.player.get_child_by_name('timeoverlay')
+        timeoverlay.set_property('silent',
+                not (timeoverlay.get_property('silent'))
+                )
 
     def exit(self, widget, data=None):
         Gtk.main_quit()
@@ -134,12 +143,12 @@ class GTK_Main:
     def on_message(self, bus, message):
         t = message.type
         if t == Gst.MessageType.EOS:
-            self.player.set_state(Gst.State.NULL)
+            self.sending.set_state(Gst.State.NULL)
             self.button.set_label("Start")
         elif t == Gst.MessageType.ERROR:
             err, debug = message.parse_error()
             print("Error: %s" % err, debug)
-            self.player.set_state(Gst.State.NULL)
+            self.sending.set_state(Gst.State.NULL)
             self.button.set_label("Start")
 
     def on_sync_message(self, bus, message):
