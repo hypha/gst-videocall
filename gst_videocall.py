@@ -25,7 +25,7 @@ def pipeline_from_list(elements):
                prv.link(gst_el)
             prv = gst_el
         else:
-            raise f"Attempt to make element {element} returned None"
+            raise Exception(f"Attempt to make element {element} returned None")
     return pipe
 
 class Sending_Pipeline:
@@ -43,6 +43,11 @@ class Sending_Pipeline:
                               "el_name": "v4l2src",
                               "name": "source"
                            })
+            elements.append({
+                "el_name": "videoconvert",
+                "name": "converter"
+            })
+
         elif platform.system() == "Darwin":
             elements.append({
                              "el_name":"avfvideosrc",
@@ -166,5 +171,10 @@ class GTK_Main:
 if __name__ == '__main__':
     Gst.init(None)
     GTK_Main()
-    GObject.threads_init()
     Gtk.main()
+
+
+
+
+
+
